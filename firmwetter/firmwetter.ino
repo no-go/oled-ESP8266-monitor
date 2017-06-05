@@ -8,6 +8,7 @@ char * wl_passwd2 = "nummidummi-blob2";
 #define MIDDLE_LENGTH    14
 
 String wetter;
+String dateHeader;
 
 struct Line {
   String _name;
@@ -22,11 +23,9 @@ struct Infoscreen {
   Line _lines[5]; 
 };
 
-#define SCREENS   4
+#define SCREENS   2
 
 Infoscreen inf[SCREENS] = {
-  { "krefeld", "Zwingenbergstr", "", {} },
-  { "krefeld", "Heyenbaumstr", "", {} },
   { "Duesseldorf", "Uni-Mitte", "", {} },
   { "Duesseldorf", "Botanischer-Garten", "", {} }
 };
@@ -62,6 +61,7 @@ int infoScreen = 0;
 SSD1306Spi        display(D0, D2, D8);
 
 ESP8266WiFiMulti  WiFiMulti;
+HTTPClient http;
 
 void extractP(int id) {
   String cutting;
@@ -106,8 +106,10 @@ void setup() {
   delay(500);
   display.init();
   display.flipScreenVertically();
-  display.setFont(DejaVu_Sans_Condensed_8);
+  const char* headerNames[] = { "Date", "Content-Type" };
+  http.collectHeaders(headerNames, 2);
 }
+
 
 void loop() {  
   if (seccount < 1) {
@@ -115,8 +117,6 @@ void loop() {
     
     // wait for WiFi connection
     if((WiFiMulti.run() == WL_CONNECTED)) {
-        HTTPClient http;
-
         for (int j = 0; j < SCREENS; ++j) {
           http.begin(
             String("https://vrrf.finalrewind.org/")+inf[j]._ort+String("/")+inf[j]._stop+String(".html?frontend=html"),
@@ -135,21 +135,34 @@ void loop() {
         http.begin("http://dummer.click/_p/wdrWetter/?text=true");
         int httpCode = http.GET();
         // httpCode will be negative on error
-        if(httpCode > 0 && httpCode == HTTP_CODE_OK) wetter = http.getString();
+        if (httpCode > 0 && httpCode == HTTP_CODE_OK) {
+          dateHeader = http.header("Date");
+          wetter = http.getString();
+        }
         http.end();
     }
   }
   
   display.clear();
   
-  display.setTextAlignment(TEXT_ALIGN_LEFT);
-
   if (infoScreen == SCREENS) {
     
+    display.setTextAlignment(TEXT_ALIGN_LEFT);
+    display.setFont(DejaVu_Sans_Condensed_8);
     display.drawStringMaxWidth(0, 3, 128, wetter);
+    
+  } else if (infoScreen == (SCREENS+1)) {
+    
+    display.setTextAlignment(TEXT_ALIGN_CENTER);
+    display.setFont(ArialMT_Plain_16);
+    display.drawString(64, 4, dateHeader.substring(0,11));
+    display.setFont(ArialMT_Plain_24);
+    display.drawString(64, 36, dateHeader.substring(17,22) + String(" ") + dateHeader.substring(25));
     
   } else {
     
+    display.setTextAlignment(TEXT_ALIGN_LEFT);
+    display.setFont(DejaVu_Sans_Condensed_8);
     display.drawString(0, 0, inf[infoScreen]._stop);
     
     display.setTextAlignment(TEXT_ALIGN_RIGHT);
@@ -170,6 +183,5 @@ void loop() {
   delay(1000);
   --seccount;
   if (seccount%5 == 0) infoScreen++;
-  if (infoScreen > SCREENS) infoScreen=0;
+  if (infoScreen > (SCREENS+1)) infoScreen=0;
 }
-
