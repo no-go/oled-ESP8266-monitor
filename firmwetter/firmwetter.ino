@@ -100,6 +100,7 @@ void extractP(int id) {
 }
 
 void setup() {
+  Serial.begin(115200);
   delay(500);
   WiFiMulti.addAP(wl_ssid,  wl_passwd);
   WiFiMulti.addAP(wl_ssid2, wl_passwd2);
@@ -108,6 +109,7 @@ void setup() {
   display.flipScreenVertically();
   const char* headerNames[] = { "Date", "Content-Type" };
   http.collectHeaders(headerNames, 2);
+  http.setUserAgent("User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:12.0) Gecko/20100101 Firefox/12.0");
 }
 
 
@@ -120,7 +122,7 @@ void loop() {
         for (int j = 0; j < SCREENS; ++j) {
           http.begin(
             String("https://vrrf.finalrewind.org/")+inf[j]._ort+String("/")+inf[j]._stop+String(".html?frontend=html"),
-            "29:50:EC:E8:76:66:09:59:89:F0:F1:39:C4:4E:4E:46:F8:D5:77:36"
+            "29:A8:9A:E8:23:A4:C3:9E:FF:D9:91:11:D8:53:56:FF:95:53:07:9B"
           );
           int httpCode = http.GET();
           // httpCode will be negative on error
@@ -129,6 +131,14 @@ void loop() {
                   inf[j]._raw = http.getString();
                   extractP(j);
               }
+          } else {
+            Serial.printf("[HTTP] GET... failed, error: %s\n", http.errorToString(httpCode).c_str());
+            display.clear();
+            display.setTextAlignment(TEXT_ALIGN_LEFT);
+            display.setFont(DejaVu_Sans_Condensed_8);
+            display.drawStringMaxWidth(0, 3, 128, http.errorToString(httpCode).c_str());          
+            display.display();
+            delay(1000);
           }
         }
 
