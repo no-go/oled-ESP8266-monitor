@@ -1,14 +1,17 @@
-char * wl_ssid = "klo.kla";
-char * wl_passwd = "nummidummiblob";
+char * wl_ssid1 = "klo.kla";
+char * wl_passwd1 = "nummidummiblob";
 
 char * wl_ssid2 = "klo.klatwo";
 char * wl_passwd2 = "nummidummi-blob2";
 
 #define REFRESH_RATE     45
 #define MIDDLE_LENGTH    14
+#define GMTMOD            2
 
 String wetter;
 String dateHeader;
+
+int hours,minutes,seconds;
 
 struct Line {
   String _name;
@@ -102,16 +105,17 @@ void extractP(int id) {
 void setup() {
   Serial.begin(115200);
   delay(500);
-  WiFiMulti.addAP(wl_ssid,  wl_passwd);
+  WiFiMulti.addAP(wl_ssid1, wl_passwd1);
   WiFiMulti.addAP(wl_ssid2, wl_passwd2);
   delay(500);
   display.init();
   display.flipScreenVertically();
+  //http.setReuse(true);
+  
   const char* headerNames[] = { "Date", "Content-Type" };
   http.collectHeaders(headerNames, 2);
   http.setUserAgent("User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:12.0) Gecko/20100101 Firefox/12.0");
 }
-
 
 void loop() {  
   if (seccount < 1) {
@@ -142,12 +146,17 @@ void loop() {
           }
         }
 
-        http.begin("http://dummer.click/_p/wdrWetter/?text=true");
-        int httpCode = http.GET();
-        // httpCode will be negative on error
-        if (httpCode > 0 && httpCode == HTTP_CODE_OK) {
-          dateHeader = http.header("Date");
-          wetter = http.getString();
+        if (minutes%5 == 0) {
+          http.begin("http://dummer.click/_p/wdrWetter/?text=true");
+          int httpCode = http.GET();
+          // httpCode will be negative on error
+          if (httpCode > 0 && httpCode == HTTP_CODE_OK) {
+            dateHeader = http.header("Date");
+            hours   = dateHeader.substring(17,19).toInt() + GMTMOD;
+            minutes = dateHeader.substring(20,22).toInt();
+            seconds = dateHeader.substring(23,25).toInt();
+            wetter = http.getString();
+          }
         }
         http.end();
     }
@@ -167,7 +176,28 @@ void loop() {
     display.setFont(ArialMT_Plain_16);
     display.drawString(64, 4, dateHeader.substring(0,11));
     display.setFont(ArialMT_Plain_24);
-    display.drawString(64, 36, dateHeader.substring(17,22) + String(" ") + dateHeader.substring(25));
+    display.setTextAlignment(TEXT_ALIGN_LEFT);
+
+    if (hours<10) {
+      display.drawString(22, 36, "0");
+      display.drawString(34, 36, String(hours));
+    } else {
+      display.drawString(22, 36, String(hours));
+    }
+    
+    if (minutes<10) {
+      display.drawString(52, 36, "0");
+      display.drawString(64, 36, String(minutes));
+    } else {
+      display.drawString(52, 36, String(minutes));
+    }
+    
+    if (seconds<10) {
+      display.drawString(83, 36, "0");
+      display.drawString(95, 36, String(seconds));
+    } else {
+      display.drawString(83, 36, String(seconds));
+    }
     
   } else {
     
@@ -176,22 +206,61 @@ void loop() {
     display.drawString(0, 0, inf[infoScreen]._stop);
     
     display.setTextAlignment(TEXT_ALIGN_RIGHT);
-    display.drawString(128, 0, String(seccount));
+    if (hours<10) {
+      display.drawString( 99, 0, "0");
+      display.drawString(107, 0, String(hours));
+    } else {
+      display.drawString(107, 0, String(hours));
+    }
+
+    if (seconds%2 == 0) display.drawString(112, 0, ":");
     
-    display.drawLine(0, 10, 128, 10);
+    if (minutes<10) {
+      display.drawString(120, 0, "0");
+      display.drawString(128, 0, String(minutes));
+    } else {
+      display.drawString(128, 0, String(minutes));
+    }
+
+    display.setPixel(10,10);
+    display.setPixel(20,10);
+    display.setPixel(30,10);
+    display.setPixel(40,10);
+    display.setPixel(50,10);
+    display.setPixel(60,10);
+    display.setPixel(70,10);
+    display.setPixel(80,10);
+    display.setPixel(90,10);
+    display.setPixel(100,10);
+    display.setPixel(110,10);
+    display.setPixel(120,10);
+    display.drawLine(0, 10, 128-(seccount*128.0/(float)REFRESH_RATE), 10);
   
     for (int i=0;i<5;++i) {
       display.setTextAlignment(TEXT_ALIGN_LEFT);
-      display.drawString(0,  11+10*i, inf[infoScreen]._lines[i]._name);
-      display.drawString(25, 11+10*i, inf[infoScreen]._lines[i]._dest);
+      display.drawString(0,  12+10*i, inf[infoScreen]._lines[i]._name);
+      display.drawString(25, 12+10*i, inf[infoScreen]._lines[i]._dest);
       display.setTextAlignment(TEXT_ALIGN_RIGHT);
-      display.drawString(128, 11+10*i, inf[infoScreen]._lines[i]._time);
+      display.drawString(128, 12+10*i, inf[infoScreen]._lines[i]._time);
     }
   }
   display.display();
 
   delay(1000);
   --seccount;
+  seconds++;
+  if (seconds >= 60) {
+    minutes++;
+    seconds = seconds%60;
+  }
+  if (minutes >= 60) {
+    hours++;
+    minutes = minutes%60;
+  }
+  if (hours >= 24) {
+    hours = hours%24;
+  }
   if (seccount%5 == 0) infoScreen++;
   if (infoScreen > (SCREENS+1)) infoScreen=0;
 }
+
