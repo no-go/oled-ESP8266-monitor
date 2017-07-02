@@ -148,6 +148,17 @@ void loop() {
 
   delay(1000);
   --seccount;
+
+  /** You know:
+   *  - press RST (to GND), press GPIO0 (to GND), leave 0 and than RST:
+   *    -> programm your ESP :-)
+   *    
+   *  GPIO0 (= D3) and (on press) you can switch to the infoscreens 
+   */
+  if (digitalRead(D3) == LOW) {
+    infoScreen++;
+  }
+  
   if (seccount%4 == 0) infoScreen++; // change every 4 sec
   if (infoScreen > (SCREENS-1)) infoScreen=0;
 }
